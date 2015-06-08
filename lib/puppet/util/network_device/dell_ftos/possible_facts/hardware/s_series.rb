@@ -29,6 +29,8 @@ module Puppet::Util::NetworkDevice::Dell_ftos::PossibleFacts::Hardware::S_series
   CMD_SHOW_DCB_MAP="show running-config dcb-map" unless const_defined?(:CMD_SHOW_DCB_MAP)
     
   CMD_SHOW_FCOE_MAP="show running-config fcoe-map" unless const_defined?(:CMD_SHOW_FCOE_MAP)
+
+  CMD_SHOW_RUNNING_INTERFACE="show running-config interface" unless const_defined?(:CMD_SHOW_RUNNING_INTERFACE)
           
   def self.register(base)
 
@@ -291,6 +293,52 @@ module Puppet::Util::NetworkDevice::Dell_ftos::PossibleFacts::Hardware::S_series
       end
       cmd CMD_SHOW_FC_NEIGHBORS
     end
+
+    #Display information on configured Port Channel groups in JSON Format
+    base.register_param 'vlan_information' do
+      vlan_information = {}
+      match do |txt|
+        interfaces = (txt.scan(/((!\s+interface\s+Vlan\s+\d+.*?shutdown\s+))/m) || [] ).flatten
+        interfaces.each do |interface_detail|
+          interface_location = interface_detail.scan(/^interface Vlan\s+(\d+)/).flatten.first
+          vlan_information[interface_location] ||= {}
+          vlan_information[interface_location]['tagged_tengigabit'] ||= ''
+          vlan_information[interface_location]['untagged_tengigabit'] ||= ''
+          vlan_information[interface_location]['tagged_fortygigabit'] ||= ''
+          vlan_information[interface_location]['untagged_fortygigabit'] ||= ''
+          vlan_information[interface_location]['tagged_portchannel'] ||= ''
+          vlan_information[interface_location]['untagged_portchannel'] ||= ''
+
+          if interface_detail.match(/^\stagged\s+TenGigabitEthernet\s+(.*?)$/mi)
+            vlan_information[interface_location]['tagged_tengigabit'] = $1
+          end
+
+          if interface_detail.match(/^\stagged\s+Port-channel\s+(.*?)$/mi)
+            vlan_information[interface_location]['tagged_portchannel'] = $1
+          end
+
+          if interface_detail.match(/^\suntagged\s+TenGigabitEthernet\s+(.*?)$/mi)
+            vlan_information[interface_location]['untagged_tengigabit'] = $1
+          end
+
+          if interface_detail.match(/^\suntagged\s+Port-channel\s+(.*?)$/mi)
+            vlan_information[interface_location]['untagged_portchannel'] = $1
+          end
+
+          if interface_detail.match(/^\stagged\s+FortyGigE\s+(.*?)$/mi)
+            vlan_information[interface_location]['tagged_fortygigabit'] = $1
+          end
+
+          if interface_detail.match(/^\suntagged\s+FortyGigE\s+(.*?)$/mi)
+            vlan_information[interface_location]['untagged_fortygigabit'] = $1
+          end
+        end
+
+        vlan_information.to_json
+      end
+      cmd CMD_SHOW_RUNNING_INTERFACE
+    end
+
 
   end
 end

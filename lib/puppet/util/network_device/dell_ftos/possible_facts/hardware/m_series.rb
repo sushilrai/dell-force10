@@ -188,41 +188,54 @@ module Puppet::Util::NetworkDevice::Dell_ftos::PossibleFacts::Hardware::M_series
     base.register_param 'vlan_information' do
       vlan_information = {}
       match do |txt|
-        interfaces = (txt.scan(/((!\s+interface\s+Vlan\s+\d+.*?shutdown\s+))/m) || [] ).flatten
-        interfaces.each do |interface_detail|
-          interface_location = interface_detail.scan(/^interface Vlan\s+(\d+)/).flatten.first
-          vlan_information[interface_location] ||= {}
-          vlan_information[interface_location]['tagged_tengigabit'] ||= {}
-          vlan_information[interface_location]['untagged_tengigabit'] ||= {}
-          vlan_information[interface_location]['tagged_fortygigabit'] ||= {}
-          vlan_information[interface_location]['untagged_fortygigabit'] ||= {}
-          vlan_information[interface_location]['tagged_portchannel'] ||= {}
-          vlan_information[interface_location]['untagged_portchannel'] ||= {}
-                    
-          if interface_detail.match(/^\stagged\s+TenGigabitEthernet\s+(.*?)$/mi)
-            vlan_information[interface_location]['tagged_tengigabit'] = $1
+        if base.facts['product_name'].value.match(/Aggregator|IOA/)
+          interfaces = (txt.scan(/(!\s+interface\s+\w+\s+\d+\/\d+.*?shutdown\s+)/m) || [] ).flatten
+          interfaces.each do |interface_detail|
+            interface_location = interface_detail.scan(/interface\s+(.*)?/).flatten.first.downcase
+            tagged_vlans = ( interface_detail.scan(/vlan tagged\s+(.*)?/) || [] ).flatten.first
+            untagged_vlans = ( interface_detail.scan(/vlan untagged\s+(.*)?/) || [] ).flatten.first
+            vlan_information[interface_location] ||= {}
+            vlan_information[interface_location]['tagged_vlans'] = tagged_vlans
+            vlan_information[interface_location]['untagged_vlans'] = untagged_vlans
           end
-          
-          if interface_detail.match(/^\stagged\s+Port-channel\s+(.*?)$/mi)
-            vlan_information[interface_location]['tagged_portchannel'] = $1
-          end
-          
-          if interface_detail.match(/^\suntagged\s+TenGigabitEthernet\s+(.*?)$/mi)
-            vlan_information[interface_location]['untagged_tengigabit'] = $1
-          end
+        else
+          interfaces = (txt.scan(/((!\s+interface\s+Vlan\s+\d+.*?shutdown\s+))/m) || [] ).flatten
+          interfaces.each do |interface_detail|
+            interface_location = interface_detail.scan(/^interface Vlan\s+(\d+)/).flatten.first
+            vlan_information[interface_location] ||= {}
+            vlan_information[interface_location]['tagged_tengigabit'] ||= ''
+            vlan_information[interface_location]['untagged_tengigabit'] ||= ''
+            vlan_information[interface_location]['tagged_fortygigabit'] ||= ''
+            vlan_information[interface_location]['untagged_fortygigabit'] ||= ''
+            vlan_information[interface_location]['tagged_portchannel'] ||= ''
+            vlan_information[interface_location]['untagged_portchannel'] ||= ''
 
-          if interface_detail.match(/^\suntagged\s+Port-channel\s+(.*?)$/mi)
-            vlan_information[interface_location]['untagged_portchannel'] = $1
-          end
-          
-          if interface_detail.match(/^\stagged\s+FortyGigE\s+(.*?)$/mi)
-            vlan_information[interface_location]['tagged_fortygigabit'] = $1
-          end
-          
-          if interface_detail.match(/^\suntagged\s+FortyGigE\s+(.*?)$/mi)
-            vlan_information[interface_location]['untagged_fortygigabit'] = $1
+            if interface_detail.match(/^\stagged\s+TenGigabitEthernet\s+(.*?)$/mi)
+              vlan_information[interface_location]['tagged_tengigabit'] = $1
+            end
+
+            if interface_detail.match(/^\stagged\s+Port-channel\s+(.*?)$/mi)
+              vlan_information[interface_location]['tagged_portchannel'] = $1
+            end
+
+            if interface_detail.match(/^\suntagged\s+TenGigabitEthernet\s+(.*?)$/mi)
+              vlan_information[interface_location]['untagged_tengigabit'] = $1
+            end
+
+            if interface_detail.match(/^\suntagged\s+Port-channel\s+(.*?)$/mi)
+              vlan_information[interface_location]['untagged_portchannel'] = $1
+            end
+
+            if interface_detail.match(/^\stagged\s+FortyGigE\s+(.*?)$/mi)
+              vlan_information[interface_location]['tagged_fortygigabit'] = $1
+            end
+
+            if interface_detail.match(/^\suntagged\s+FortyGigE\s+(.*?)$/mi)
+              vlan_information[interface_location]['untagged_fortygigabit'] = $1
+            end
           end
         end
+
         vlan_information.to_json
       end
       cmd CMD_SHOW_RUNNING_INTERFACE
