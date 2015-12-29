@@ -19,23 +19,28 @@ Puppet::Type.type(:force10_interface).provide :dell_ftos, :parent => Puppet::Pro
   end
 
   def exists?
-    vlan_info = get_vlan_info
-    iface = get_iface
-    iface = iface.gsub(/te |tengigabitethernet /i, "Tengigabitethernet ")
-    iface = iface.gsub(/fo |fortygige /i, "Fortygige ")
-    # Name translation to map puppet resource name to fact key
-    if iface.include? 'Tengigabitethernet'
-      iface.slice! 'Tengigabitethernet '
-      type = 'tengigabit'
-    elsif iface.include? 'Fortygige'
-      iface.slice! 'Fortygige '
-      type = 'fortygigabit'
+    if resource[:ensure].to_s == "absent"
+      vlan_info = get_vlan_info
+      iface = get_iface
+      iface = iface.gsub(/te |tengigabitethernet /i, "Tengigabitethernet ")
+      iface = iface.gsub(/fo |fortygige /i, "Fortygige ")
+      # Name translation to map puppet resource name to fact key
+      if iface.include? 'Tengigabitethernet'
+        iface.slice! 'Tengigabitethernet '
+        type = 'tengigabit'
+      elsif iface.include? 'Fortygige'
+        iface.slice! 'Fortygige '
+        type = 'fortygigabit'
+      else
+        raise Puppet::Error, "Unknown interface type #{iface}"
+      end
+      @iface = iface
+      @ifaces_to_destroy = check_for_interface(vlan_info, iface, type)
+      @ifaces_to_destroy.any?
     else
-      raise Puppet::Error, "Unknown interface type #{iface}"
+      return @property_hash
     end
-    @iface = iface
-    @ifaces_to_destroy = check_for_interface(vlan_info, iface, type)
-    @ifaces_to_destroy.any?
+
   end
 
   def destroy
